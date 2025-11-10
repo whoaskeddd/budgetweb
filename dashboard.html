@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard </title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="dashboard.js" defer></script>
+</head>
+<body>
+   
+
+    <main class="main-content">
+        <section id="dashboard" class="page">
+            <div class="dashboard-header">
+                <h1>Панель управления</h1>
+                <div class="user-menu">
+                    <span id="userEmail">user@example.com</span>
+                    <button class="btn secondary" id="logoutBtn">Выйти</button>
+                </div>
+            </div>
+
+            <div class="dashboard-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon income">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18M3 21h18m-9-12v6m-3-3h6"></path>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Общий доход</h3>
+                            <div class="stat-value" id="totalIncome">$0.00</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon expense">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18M3 21h18m-9-12v6"></path>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Общие расходы</h3>
+                            <div class="stat-value" id="totalExpenses">$0.00</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon balance">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6h18M3 12h18M3 18h18"></path>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Баланс</h3>
+                            <div class="stat-value" id="balance">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-navigation">
+                    <button class="tab-btn active" data-tab="transactions">Транзакции</button>
+                    <button class="tab-btn" data-tab="categories">Категории</button>
+                    <button class="tab-btn" data-tab="budget">Бюджет</button>
+                </div>
+
+                <div class="tab-content">
+                    <div id="transactions" class="tab-pane active">
+                        <div class="section-header">
+                            <h2>Транзакции</h2>
+                            <button class="btn primary" id="addTransactionBtn">Добавить транзакцию</button>
+                        </div>
+                        <div class="transactions-list" id="transactionsList">
+                            <div class="empty-state">
+                                <p>Нет транзакций. Добавьте первую, чтобы начать!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="categories" class="tab-pane">
+                        <div class="section-header">
+                            <h2>Категории</h2>
+                            <button class="btn primary" id="addCategoryBtn">Добавить категорию</button>
+                        </div>
+                        <div class="categories-grid" id="categoriesGrid"></div>
+                    </div>
+
+                    <div id="budget" class="tab-pane">
+                        <div class="section-header">
+                            <h2>Планирование бюджета</h2>
+                            <button class="btn primary" id="setBudgetBtn">Установить бюджет</button>
+                        </div>
+                        <div id="budgetOverview">
+                            <div class="empty-state">
+                                <p>Настройте первый бюджет, чтобы отслеживать расходы!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal" id="transactionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить транзакцию</h2>
+                <button class="modal-close" id="closeTransactionModal">×</button>
+            </div>
+            <form id="transactionForm">
+                <div class="form-group">
+                    <label for="type">Тип</label>
+                    <select id="type" name="type" required>
+                        <option value="income">Доход</option>
+                        <option value="expense">Расход</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="amount">Сумма</label>
+                    <input type="number" id="amount" name="amount" step="0.01" required />
+                </div>
+                <div class="form-group">
+                    <label for="transactionCategory">Категория</label>
+                    <select id="transactionCategory" name="category" required>
+                        <option value="">Выберите категорию</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="description">Описание</label>
+                    <input type="text" id="description" name="description" required />
+                </div>
+                <div class="form-group">
+                    <label for="transactionDate">Дата</label>
+                    <input type="date" id="transactionDate" name="date" required />
+                </div>
+                <button type="submit" class="btn primary full-width">Добавить транзакцию</button>
+            </form>
+        </div>
+    </div>
+
+   <div class="modal" id="categoryModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Добавить категорию</h2>
+      <button class="modal-close" id="closeCategoryModal">×</button>
+    </div>
+    <form id="categoryForm">
+      <div class="form-group">
+        <label for="name">Название категории</label>
+        <input type="text" id="name" name="name" required />
+      </div>
+      <div class="form-group">
+        <label for="categoryType">Тип категории</label>
+        <select id="categoryType" name="type" required>
+          <option value="expense">Расход</option>
+          <option value="income">Доход</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="color">Цвет</label>
+        <input type="color" id="color" name="color" value="#3b82f6" required />
+      </div>
+      <button type="submit" class="btn primary full-width">Добавить категорию</button>
+    </form>
+  </div>
+</div>
+
+    <div class="modal" id="budgetModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Установить бюджет</h2>
+                <button class="modal-close" id="closeBudgetModal">×</button>
+            </div>
+            <form id="budgetForm">
+                <div class="form-group">
+                    <label for="budgetCategory">Категория</label>
+                    <select id="budgetCategory" name="category" required>
+                        <option value="">Выберите категорию</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="amount">Месячный бюджет</label>
+                    <input type="number" id="amount" name="amount" step="0.01" required />
+                </div>
+                <button type="submit" class="btn primary full-width">Установить бюджет</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="authModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="authTitle">Вход</h2>
+                <button class="modal-close" id="closeModal">×</button>
+            </div>
+            <form id="authForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required />
+                </div>
+                <div class="form-group">
+                    <label for="password">Пароль</label>
+                    <input type="password" id="password" name="password" required />
+                </div>
+                <div class="form-group" id="confirmPasswordGroup" style="display: none;">
+                    <label for="confirmPassword">Подтвердите пароль</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" />
+                </div>
+                <button type="submit" class="btn primary full-width" id="authSubmit">Войти</button>
+            </form>
+            <div class="auth-switch" id="authSwitchText">
+                Нет аккаунта? <button type="button" id="authSwitchBtn">Зарегистрироваться</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
