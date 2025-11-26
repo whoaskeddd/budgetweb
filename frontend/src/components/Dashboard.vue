@@ -144,8 +144,9 @@
 <div v-if="activeTab === 'budget'" class="tab-pane active">
   <div class="section-header">
     <h2>Планирование бюджета</h2>
-<button class="btn primary" @click="openBudgetModal">Установить бюджет</button>
+    <button class="btn primary" @click="openBudgetModal">Установить бюджет</button>
   </div>
+  
   <div class="budget-overview">
     <div v-if="userBudgets.length === 0" class="empty-state">
       <p>Настройте первый бюджет, чтобы отслеживать расходы!</p>
@@ -349,10 +350,12 @@ export default {
       )
     })
 
-    const userBudgets = computed(() => {
-      return budgets.value.filter(b => b.userId === currentUser.value.email)
-    })
-
+const userBudgets = computed(() => {
+  return budgets.value.filter(b => 
+    b.userId === currentUser.value?.email || 
+    b.user_id === currentUser.value?.id
+  )
+})
 const expenseCategories = computed(() => {
   const categories = userCategories.value.filter(cat => cat.type === 'expense');
   console.log('💰 Expense categories computed:', categories);
@@ -398,30 +401,44 @@ const expenseCategories = computed(() => {
       }
     }
 
-onMounted(() => {
+onMounted(async () => {
   console.log('=== Dashboard mounted ===');
+  console.log('👤 Current user on mount:', currentUser.value);
+  
+  // Сначала загружаем из localStorage для быстрого отображения
   loadData();
+  console.log('📦 Initial budgets from localStorage:', budgets.value);
   
-
-  
-  // Проверяем токен
-  if (!currentUser.value?.token) {
-    console.error('No token on dashboard load');
-    alert('Токен отсутствует. Перенаправляем на страницу входа.');
-    emit('logout');
-    return;
+  // Затем загружаем актуальные данные из БД
+  if (currentUser.value?.token) {
+    console.log('🔄 Loading fresh data from DB...');
+    await loadCategoriesFromDB();
+    await loadTransactionsFromDB(); 
+    await loadBudgetsFromDB(); // Важно: ждем завершения
+    
+    console.log('🎯 Final budgets state:', budgets.value);
+    console.log('👤 Final userBudgets:', userBudgets.value);
+  } else {
+    console.error('❌ No token on mount!');
   }
-  
-  console.log('Token verified, loading categories...');
-  loadCategoriesFromDB();
 });
 
 
-    const saveData = () => {
-      localStorage.setItem('budgetApp_transactions', JSON.stringify(transactions.value))
-      localStorage.setItem('budgetApp_categories', JSON.stringify(categories.value))
-      localStorage.setItem('budgetApp_budgets', JSON.stringify(budgets.value))
-    }
+   const saveData = () => {
+  try {
+    localStorage.setItem('budgetApp_transactions', JSON.stringify(transactions.value))
+    localStorage.setItem('budgetApp_categories', JSON.stringify(categories.value))
+    localStorage.setItem('budgetApp_budgets', JSON.stringify(budgets.value))
+    
+    console.log('💾 Data saved to localStorage:');
+    console.log('  - Transactions:', transactions.value.length)
+    console.log('  - Categories:', categories.value.length)
+    console.log('  - Budgets:', budgets.value.length)
+    console.log('  - Budgets data:', budgets.value)
+  } catch (error) {
+    console.error('❌ Error saving to localStorage:', error)
+  }
+}
 
     const switchTab = (tabName) => {
       activeTab.value = tabName
@@ -722,13 +739,8 @@ const handleAddCategory = async () => {
 // Загрузка бюджетов из базы данных
 const loadBudgetsFromDB = async () => {
   try {
-    if (!currentUser.value?.token) {
-      console.error('No token for loading budgets');
-      return;
-    }
+    if (!currentUser.value?.token) return;
 
-    console.log('💰 Loading budgets from database...');
-    
     const response = await fetch('http://localhost:5000/api/budgets', {
       method: 'GET',
       headers: {
@@ -739,37 +751,30 @@ const loadBudgetsFromDB = async () => {
 
     if (response.ok) {
       const data = await response.json();
-      console.log('✅ Budgets loaded from DB:', data.length, 'items');
       
-      // Преобразуем данные для совместимости с фронтендом
       budgets.value = data.map(b => ({
         id: b.id,
         categoryId: b.category_id,
-        amount: parseFloat(b.amount), // Преобразуем в число
+        amount: parseFloat(b.amount),
         period: b.period,
-        userId: currentUser.value.email
+        userId: currentUser.value.email,
+        user_id: b.user_id
       }));
       
-      console.log('📊 Sample budget:', budgets.value[0]);
-      
-      // Сохраняем в localStorage для кэша
       saveData();
     } else {
-      console.error('❌ Failed to load budgets from DB:', response.status);
-      // Если не удалось загрузить из БД, используем localStorage
       loadData();
     }
   } catch (error) {
-    console.error('❌ Error loading budgets from DB:', error);
-    // В случае ошибки используем данные из localStorage
+    console.error('Error loading budgets from DB:', error);
     loadData();
   }
 };
 
-// Обновленный метод для установки бюджета
 const handleSetBudget = async () => {
   try {
     console.log('=== DEBUG: Starting budget creation ===');
+    console.log('👤 Current user:', currentUser.value);
     
     if (!currentUser.value?.token) {
       console.error('No token found');
@@ -781,10 +786,11 @@ const handleSetBudget = async () => {
     const budgetData = {
       category_id: parseInt(budgetForm.category),
       amount: budgetForm.amount,
-      period: new Date().toISOString().slice(0, 7) // Текущий месяц в формате YYYY-MM
+      period: new Date().toISOString().slice(0, 7),
+      user_id: currentUser.value.id || currentUser.value.userId // используем id
     };
 
-    console.log('Budget data for API:', budgetData);
+    console.log('📤 Budget data for API:', budgetData);
 
     // Валидация
     if (!budgetData.category_id || budgetData.amount <= 0) {
@@ -816,9 +822,7 @@ const handleSetBudget = async () => {
       const errorText = await response.text();
       console.log('Server error:', errorText);
       
-      // Если бюджет уже существует, возможно нужно обновить его
       if (response.status === 400) {
-        // Попробуем найти существующий бюджет и обновить его
         await updateExistingBudget(budgetData);
         return;
       }
@@ -829,22 +833,24 @@ const handleSetBudget = async () => {
     const data = await response.json();
     console.log('Success! Budget created in DB:', data);
 
-    // Добавляем бюджет в локальный state
- const budget = {
-  id: data.id,
-  categoryId: data.category_id,
-  amount: parseFloat(data.amount), // Преобразуем в число
-  period: data.period,
-  userId: currentUser.value.email
-};
+    // Правильное преобразование данных
+    const budget = {
+      id: data.id,
+      categoryId: data.category_id,
+      amount: parseFloat(data.amount),
+      period: data.period,
+      userId: currentUser.value.email,
+      user_id: data.user_id
+    };
 
-    // Удаляем существующий бюджет для этой категории (если есть)
+    // Удаляем существующий бюджет для этой категории
     budgets.value = budgets.value.filter(b => 
-      !(b.categoryId === budget.categoryId && b.userId === budget.userId)
+      !(b.categoryId === budget.categoryId && 
+        (b.userId === budget.userId || b.user_id === budget.user_id))
     );
     
     budgets.value.push(budget);
-    saveData(); // Сохраняем в localStorage
+    saveData();
     closeBudgetModal();
     
     alert('Бюджет успешно установлен!');
@@ -858,7 +864,6 @@ const handleSetBudget = async () => {
 // Метод для обновления существующего бюджета
 const updateExistingBudget = async (budgetData) => {
   try {
-    // Сначала получаем все бюджеты пользователя
     const response = await fetch('http://localhost:5000/api/budgets', {
       method: 'GET',
       headers: {
@@ -871,11 +876,11 @@ const updateExistingBudget = async (budgetData) => {
       const userBudgets = await response.json();
       const existingBudget = userBudgets.find(b => 
         b.category_id === budgetData.category_id && 
-        b.period === budgetData.period
+        b.period === budgetData.period &&
+        (b.user_id === currentUser.value.id || b.user_id === currentUser.value.userId) // исправляем здесь
       );
 
       if (existingBudget) {
-        // Обновляем существующий бюджет
         const updateResponse = await fetch(`http://localhost:5000/api/budgets/${existingBudget.id}`, {
           method: 'PUT',
           headers: {
@@ -891,7 +896,8 @@ const updateExistingBudget = async (budgetData) => {
 
           // Обновляем в локальном state
           budgets.value = budgets.value.filter(b => 
-            !(b.categoryId === updatedBudget.category_id && b.userId === currentUser.value.email)
+            !(b.categoryId === updatedBudget.category_id && 
+              (b.userId === currentUser.value.email || b.user_id === currentUser.value.userId))
           );
           
           budgets.value.push({
@@ -899,7 +905,8 @@ const updateExistingBudget = async (budgetData) => {
             categoryId: updatedBudget.category_id,
             amount: updatedBudget.amount,
             period: updatedBudget.period,
-            userId: currentUser.value.email
+            userId: currentUser.value.email,
+            user_id: updatedBudget.user_id
           });
           
           saveData();
@@ -1072,17 +1079,26 @@ const loadCategoriesFromDB = async () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   console.log('=== Dashboard mounted ===');
+  console.log('👤 Current user on mount:', currentUser.value);
   
   // Сначала загружаем из localStorage для быстрого отображения
   loadData();
+  console.log('📦 Initial budgets from localStorage:', budgets.value);
   
   // Затем загружаем актуальные данные из БД
   if (currentUser.value?.token) {
-    loadTransactionsFromDB();
-    loadCategoriesFromDB(); 
-    loadBudgetsFromDB();
+    console.log('🔄 Loading fresh data from DB...');
+    // Сначала категории, потом транзакции и бюджеты
+    await loadCategoriesFromDB();
+    await loadTransactionsFromDB(); 
+    await loadBudgetsFromDB();
+    
+    console.log('🎯 Final budgets state:', budgets.value);
+    console.log('👤 Final userBudgets:', userBudgets.value);
+  } else {
+    console.error('❌ No token on mount!');
   }
 });
     return {

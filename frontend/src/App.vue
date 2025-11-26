@@ -149,6 +149,9 @@ const handleOpenAuth = (mode = 'login') => {
     console.error('Auth error:', error)
     alert(error.message || 'Ошибка авторизации')
   }
+
+  
+
 }
     const toggleAuthMode = () => {
       authMode.value = authMode.value === 'login' ? 'signup' : 'login'
